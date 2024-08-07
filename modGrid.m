@@ -16,7 +16,9 @@ parameters.ghostCells = 0;
 parameters.physicalGroups = 1;
 parameters.compatibility = 0;
 
+if parameters.newGrid
 genMesh(parameters)
+end
 mesh
 
 % Sort the strip labels on the grid in order from left to right (if there
