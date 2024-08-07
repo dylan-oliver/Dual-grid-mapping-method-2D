@@ -6,6 +6,7 @@ clc
 %% Pick test case, set no. of strips for DM method
 parameters.testCase = 3;
 parameters.numStrips = 8; % Number of strips to partition the domain into
+parameters.newGrid = false; % Generate a new grid using GMSH
 parameters.saveInfo = false;
 
 %% Construct a grid over a rectangular domain [0,Lx] x [0,Ly]
