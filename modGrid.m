@@ -1,25 +1,46 @@
 function grid = modGrid(parameters)
+%MODGRID - Modify finite-volume grid obtained from GMSH to allow usage with
+% finite volume and dual-grid mapping methods.
+%
+% Syntax
+%   grid = modGrid(parameters)
+%
+% Input Arguments
+%   parameters - FVM parameters. Custom structure (see run.m).
+%
+% Output Arguments
+%   grid - 2D FVM grid object. Custom structure.
 
-Lx = parameters.Lx;
-Ly = parameters.Ly;
-points = parameters.points;
+% Extract domain information.
+xL = parameters.xL;
+yH = parameters.yH;
 numStrips = parameters.numStrips;
+points = parameters.points;
 
-if isempty(points)
-elseif any(points(:,1) >= Lx) || any(points(:,1) <= 0) || any(points(:,2) >= Ly) || any(points(:,2) <= 0)
-    error('Exact points must be placed strictly inside the problem domain.')
-end
-
-% Set options for partition algorithm in GMSH.
-parameters.domainTopology = 1;
-parameters.ghostCells = 0;
-parameters.physicalGroups = 1;
-parameters.compatibility = 0;
-
+% If a new grid is required, generate it using GMSH. Otherwise, load a
+% saved grid.
 if parameters.newGrid
-genMesh(parameters)
+    if isempty(points)
+    elseif any(points(:,1) >= xL) || any(points(:,1) <= 0) || any(points(:,2) >= yH) || any(points(:,2) <= 0)
+        error('Exact points must be placed strictly inside the problem domain.')
+    end
+
+    % Set options for partition algorithm in GMSH.
+    parameters.domainTopology = 1;
+    parameters.ghostCells = 0;
+    parameters.physicalGroups = 1;
+    parameters.compatibility = 0;
+
+    if parameters.testCase == 5
+        hetMesh(parameters)
+    else
+        genMesh(parameters)
+    end
+    mesh
+    save(['Data/Test_Case_',num2str(parameters.testCase),'_mesh.mat'],'msh')
+else
+    load(['Data/Test_Case_',num2str(parameters.testCase),'_mesh.mat'],'msh')
 end
-mesh
 
 % Sort the strip labels on the grid in order from left to right (if there
 % are 10 strips, the labels should progress from 1 on the far-left to 10 on
@@ -44,7 +65,7 @@ end
 % Adjust label numbering after correction.
 msh.TRIANGLES(:,4) = msh.TRIANGLES(:,4) - numStrips;
 
-nodes = msh.POS;
+nodes = msh.POS(:,1:2);
 elmnts = msh.TRIANGLES;
 lines = msh.LINES;
 corners = msh.PNT(1:4,1);
@@ -158,11 +179,11 @@ for i = 1:size(linesTmp,1)
         linesTmp(i,3) = 1;
 
     % East
-    elseif (tmpLine(1,1) == Lx) && (tmpLine(2,1) == Lx)
+    elseif (tmpLine(1,1) == xL) && (tmpLine(2,1) == xL)
         linesTmp(i,3) = 2;
 
     % North
-    elseif (tmpLine(1,2) == Ly) && (tmpLine(2,2) == Ly)
+    elseif (tmpLine(1,2) == yH) && (tmpLine(2,2) == yH)
         linesTmp(i,3) = 3;
 
     % West
@@ -265,8 +286,8 @@ end
 linesTmp(linesTmp(:,3)>4,:) = [];
 
 % Assemble modified grid for use with finite volume and DM methods.
-grid.Lx = Lx;
-grid.Ly = Ly;
+grid.Lx = xL;
+grid.Ly = yH;
 grid.numStrips = numStrips;
 grid.nodes = nodesTmp;
 grid.elmnts = elmntsTmp;
@@ -277,7 +298,6 @@ grid.dirichletDM = dirichletDM;
 grid.I = speye(size(nodesTmp,1));
 grid.doubleUpRows = doubleUpRows;
 grid.doubleUpCols = doubleUpCols;
-%grid.idx = idx;
 
 % Assemble sub-grids for use with DM method
 for p = 1:numStrips
@@ -288,8 +308,8 @@ for p = 1:numStrips
     grid.subgrid{p}.elmnts = [tmpStrip(:,1:3) - nodeOffset,tmpStrip(:,4)];
     grid.subgrid{p}.lines = [];
     grid.subgrid{p}.dirichlet = ismember(tmpNodes,stripBoundary{p});
-    map = diag(grid.subgrid{p}.dirichlet);
-    grid.subgrid{p}.map = sparse(map(:,any(map)));
+    Hp = diag(grid.subgrid{p}.dirichlet);
+    grid.subgrid{p}.Hp = sparse(Hp(:,any(Hp)));
     grid.subgrid{p}.I = speye(size(tmpNodes,1));
     grid.subgrid{p}.idxNodes = tmpNodes;
     grid.subgrid{p}.idxElmnts = ismember(elmntsTmp(:,1:3),tmpStrip(:,1:3),'rows');

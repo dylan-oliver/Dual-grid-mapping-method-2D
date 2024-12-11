@@ -1,4 +1,16 @@
 function genMesh(parameters)
+%GENMESH - Creates a finite-volume grid on a rectangular domain.
+%
+% Syntax
+%   GENMESH(parameters) 
+%
+% Input Arguments
+%   parameters - FVM parameters. Custom structure (see run.m).
+%
+% Output
+%   A mesh.geo file is created in the working folder, containing
+%   information for a GMSH domain. A file mesh.m is also created in the
+%   working folder, as output from GMSH after processing the mesh.geo file.
 
 fid = fopen('mesh.geo', 'w');
 
@@ -53,7 +65,7 @@ fprintf(fid,'Mesh.PartitionCreatePhysicals = %g;\n',parameters.physicalGroups); 
 fprintf(fid,'Mesh.PartitionOldStyleMsh2 = %g;\n',parameters.compatibility); % 0 to remove compatibility for older GMSH versions (MSH2 format), 1 to save mesh in compatibility mode (note: setting 1 will break the grid modification)
 
 fprintf(fid,'Plugin(SimplePartition).NumSlicesX = %g;\n',parameters.numStrips); % Number of partitions, any (reasonable) integer > 1
-fprintf(fid,'Plugin(SimplePartition).NumSlicesY = 1;\n');
+fprintf(fid,'Plugin(SimplePartition).NumSlicesY = %g;\n',1);
 fprintf(fid,'Plugin(SimplePartition).Run;\n');
 
 fprintf(fid,'Mesh.Format = 50;\n');
